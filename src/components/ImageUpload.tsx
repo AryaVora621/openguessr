@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface ImageUploadProps {
-  onAnalyze: (files: File[]) => void;
+  onAnalyze: (files: File[]) => Promise<void> | void;
   loading: boolean;
 }
 
 const MAX_FILES = 5;
+const MAX_IMAGE_DIMENSION = 2200;
+const MAX_ORIGINAL_FILE_SIZE = 2_500_000;
+const COMPRESSED_IMAGE_QUALITY = 0.86;
 const LOADING_POINTS = [
   { top: '14%', left: '12%', delay: '0s', duration: '10s' },
   { top: '28%', left: '76%', delay: '1.2s', duration: '13s' },
@@ -16,6 +19,81 @@ const LOADING_POINTS = [
   { top: '70%', left: '24%', delay: '1.8s', duration: '14s' },
   { top: '82%', left: '82%', delay: '2.8s', duration: '10s' },
 ];
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to read image'));
+      }
+    };
+
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read image'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Failed to decode image'));
+    image.src = src;
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), type, quality);
+  });
+}
+
+async function normalizeFileForUpload(file: File) {
+  if (!file.type.startsWith('image/')) {
+    return file;
+  }
+
+  if (file.size <= MAX_ORIGINAL_FILE_SIZE) {
+    return file;
+  }
+
+  try {
+    const source = await readFileAsDataUrl(file);
+    const image = await loadImageElement(source);
+    const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / longestSide);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return file;
+    }
+
+    context.drawImage(image, 0, 0, width, height);
+
+    const blob = await canvasToBlob(canvas, 'image/jpeg', COMPRESSED_IMAGE_QUALITY);
+    if (!blob || blob.size >= file.size) {
+      return file;
+    }
+
+    const nextName = file.name.replace(/\.[^.]+$/, '') || 'upload';
+    return new File([blob], `${nextName}.jpg`, {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  }
+}
 
 function LoadingOverlay({ imageCount }: { imageCount: number }) {
   return (
@@ -91,6 +169,7 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const browseInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -117,9 +196,16 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
     setFiles((currentFiles) => currentFiles.filter((_, currentIndex) => currentIndex !== index));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (files.length > 0) {
-      onAnalyze(files);
+      setPreparing(true);
+
+      try {
+        const preparedFiles = await Promise.all(files.map((file) => normalizeFileForUpload(file)));
+        await onAnalyze(preparedFiles);
+      } finally {
+        setPreparing(false);
+      }
     }
   };
 
@@ -127,8 +213,14 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
     <>
       <main className="upload-shell">
         <div className="upload-ambient" aria-hidden="true">
+          <div className="upload-ambient-mesh" />
           <div className="upload-ambient-orb upload-ambient-orb-1" />
           <div className="upload-ambient-orb upload-ambient-orb-2" />
+          <div className="upload-beam upload-beam-1" />
+          <div className="upload-beam upload-beam-2" />
+          <div className="upload-pulse upload-pulse-1" />
+          <div className="upload-pulse upload-pulse-2" />
+          <div className="upload-pulse upload-pulse-3" />
           <div className="upload-grid" />
         </div>
 
@@ -143,7 +235,7 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                   OpenGuessr Solver
                 </h1>
                 <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-                  Drop in screenshots or shoot fresh ones from your phone. This build is made by Arya Vora and tuned for quick mobile-first location solving.
+                  Upload screenshots or snap fresh photos from your phone. This build is made by Arya Vora and tuned to extract the strongest geographic clues fast.
                 </p>
               </div>
 
@@ -201,7 +293,7 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                     <div>
                       <h2 className="text-xl font-semibold text-white">Add up to five screenshots</h2>
                       <p className="mt-2 text-sm leading-6 text-slate-300">
-                        Drag and drop desktop captures, browse your library, or use the camera button below to snap a photo directly from your phone.
+                        Drag in desktop captures, browse your gallery, or use the camera button below to take a fresh photo directly from your phone.
                       </p>
                     </div>
                   </div>
@@ -236,6 +328,40 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                 </div>
               </div>
 
+              <div className="mt-5 rounded-[1.5rem] border border-cyan-200/10 bg-cyan-300/8 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="sm:max-w-xl">
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/75">
+                      Best Clues
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-white">Give the model something distinctive to read</h3>
+                  </div>
+                  <div className="rounded-full border border-cyan-200/15 bg-white/5 px-3 py-1 text-xs text-cyan-100">
+                    Text + landmarks win
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3">
+                    <p className="text-sm font-medium text-slate-100">Readable text</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-300">
+                      Street signs, storefront names, road numbers, transit signs, and license plates help the AI narrow location quickly.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3">
+                    <p className="text-sm font-medium text-slate-100">Landmarks</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-300">
+                      Statues, towers, mountain silhouettes, bridges, plazas, monuments, and unique buildings are strong anchors.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3">
+                    <p className="text-sm font-medium text-slate-100">Context shots</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-300">
+                      Mix one wide scene with one close crop so the model sees both the environment and the details inside it.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {previews.length > 0 && (
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
                   {previews.map((src, index) => (
@@ -266,17 +392,17 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={files.length === 0 || loading}
+                  disabled={files.length === 0 || loading || preparing}
                   className={`inline-flex min-h-14 flex-1 items-center justify-center rounded-2xl px-5 py-4 text-base font-semibold transition ${
-                    files.length === 0 || loading
+                    files.length === 0 || loading || preparing
                       ? 'cursor-not-allowed bg-slate-800 text-slate-500'
                       : 'bg-white text-slate-950 hover:bg-cyan-100'
                   }`}
                 >
-                  Analyze Location
+                  {preparing ? 'Optimizing Screenshots...' : 'Analyze Location'}
                 </button>
                 <p className="text-sm leading-6 text-slate-400 sm:max-w-xs">
-                  Best results usually come from mixing one wide view with a closer sign, road, or building shot.
+                  Prioritize screenshots with visible text, a recognizable landmark, or road signage whenever possible.
                 </p>
               </div>
             </section>
@@ -294,17 +420,17 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
 
               <div className="rounded-[1.5rem] border border-white/10 bg-slate-950/60 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/75">
-                  Workflow
+                  Capture Tips
                 </p>
                 <div className="mt-4 space-y-3 text-sm text-slate-300">
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    1. Shoot or upload 1 to 5 images.
+                    1. Start with the clearest frame that shows a sign, place name, or obvious landmark.
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    2. Let the animated scan run while the solver reads the scene.
+                    2. Add a second shot with wider context like road layout, terrain, skyline, or nearby buildings.
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    3. Jump straight into the guessed point and reasoning.
+                    3. Avoid blurry crops when possible. Readable text and distinct architecture usually outperform generic scenery.
                   </div>
                 </div>
               </div>

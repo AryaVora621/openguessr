@@ -17,15 +17,35 @@ export default function Home() {
   const handleAnalyze = async (files: File[]) => {
     setLoading(true);
     setError(null);
+    setResult(null);
 
     const formData = new FormData();
     files.forEach((f) => formData.append('images', f));
 
     try {
       const res = await fetch('/api/analyze', { method: 'POST', body: formData });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: { error?: string; result?: LocationResult } = {};
 
-      if (!res.ok || data.error) {
+      if (raw) {
+        try {
+          data = JSON.parse(raw) as { error?: string; result?: LocationResult };
+        } catch {
+          data = {};
+        }
+      }
+
+      if (!res.ok) {
+        if (res.status === 413) {
+          setError('Upload too large. Try fewer screenshots or smaller images.');
+          return;
+        }
+
+        setError(data.error ?? `Analysis failed (${res.status})`);
+        return;
+      }
+
+      if (data.error || !data.result) {
         setError(data.error ?? 'Analysis failed');
       } else {
         setResult(data.result);

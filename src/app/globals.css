@@ -34,6 +34,18 @@ body {
   pointer-events: none;
 }
 
+.upload-ambient-mesh {
+  position: absolute;
+  inset: -15%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(125, 211, 252, 0.16) 0%, transparent 24%),
+    radial-gradient(circle at 72% 24%, rgba(45, 212, 191, 0.14) 0%, transparent 22%),
+    radial-gradient(circle at 54% 70%, rgba(59, 130, 246, 0.14) 0%, transparent 28%);
+  filter: blur(48px);
+  opacity: 0.9;
+  animation: mesh-drift 22s ease-in-out infinite alternate;
+}
+
 .upload-ambient-orb {
   position: absolute;
   border-radius: 9999px;
@@ -68,6 +80,66 @@ body {
     linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
   background-size: 4.5rem 4.5rem;
   mask-image: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.8) 18%, rgba(0, 0, 0, 0.8) 82%, transparent);
+}
+
+.upload-grid {
+  animation: grid-pan 20s linear infinite;
+}
+
+.upload-beam {
+  position: absolute;
+  inset: auto;
+  width: 34rem;
+  height: 10rem;
+  border-radius: 9999px;
+  opacity: 0.28;
+  filter: blur(52px);
+  transform: rotate(-14deg);
+}
+
+.upload-beam-1 {
+  top: 8%;
+  left: -8%;
+  background: linear-gradient(90deg, transparent 0%, rgba(34, 211, 238, 0.45) 55%, transparent 100%);
+  animation: beam-sweep 18s ease-in-out infinite;
+}
+
+.upload-beam-2 {
+  right: -10%;
+  bottom: 12%;
+  background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.5) 55%, transparent 100%);
+  animation: beam-sweep 22s ease-in-out infinite reverse;
+}
+
+.upload-pulse {
+  position: absolute;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  opacity: 0;
+}
+
+.upload-pulse-1 {
+  top: 18%;
+  left: 16%;
+  width: 12rem;
+  height: 12rem;
+  animation: pulse-fade 6s ease-out infinite;
+}
+
+.upload-pulse-2 {
+  top: 52%;
+  right: 14%;
+  width: 16rem;
+  height: 16rem;
+  animation: pulse-fade 7s ease-out 1.5s infinite;
+}
+
+.upload-pulse-3 {
+  bottom: 6%;
+  left: 42%;
+  width: 10rem;
+  height: 10rem;
+  animation: pulse-fade 5.5s ease-out 3s infinite;
 }
 
 .loading-overlay {
@@ -221,6 +293,51 @@ body {
   }
 }
 
+@keyframes mesh-drift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, 3%, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(-1%, 1%, 0) scale(0.98);
+  }
+}
+
+@keyframes grid-pan {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 2.25rem, 0);
+  }
+}
+
+@keyframes beam-sweep {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-14deg) scaleX(0.92);
+  }
+  50% {
+    transform: translate3d(10%, -4%, 0) rotate(-10deg) scaleX(1.08);
+  }
+}
+
+@keyframes pulse-fade {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+}
+
 @keyframes loading-point-drift {
   0% {
     transform: translate3d(0, 0, 0) scale(0.85);
@@ -274,6 +391,31 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-ambient-mesh,
+  .upload-ambient-orb-1,
+  .upload-ambient-orb-2,
+  .upload-grid,
+  .upload-beam-1,
+  .upload-beam-2,
+  .upload-pulse-1,
+  .upload-pulse-2,
+  .upload-pulse-3,
+  .loading-aurora-1,
+  .loading-aurora-2,
+  .loading-point,
+  .loading-ring-1,
+  .loading-ring-2,
+  .loading-ring-3,
+  .loading-beam,
+  .loading-dot-1,
+  .loading-dot-2,
+  .loading-dot-3,
+  .fade-in {
+    animation: none !important;
   }
 }
 
