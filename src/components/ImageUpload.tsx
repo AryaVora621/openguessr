@@ -298,7 +298,7 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="flex flex-col gap-3 lg:grid lg:grid-cols-3">
                     <button
                       type="button"
                       onClick={() => browseInputRef.current?.click()}
@@ -317,6 +317,18 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                       </svg>
                       Use Phone Camera
                     </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={files.length === 0 || loading || preparing}
+                      className={`inline-flex min-h-12 items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                        files.length === 0 || loading || preparing
+                          ? 'cursor-not-allowed bg-slate-800 text-slate-500'
+                          : 'bg-white text-slate-950 hover:bg-cyan-100'
+                      }`}
+                    >
+                      {preparing ? 'Optimizing...' : 'Analyze Location'}
+                    </button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
@@ -328,36 +340,29 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-[1.5rem] border border-cyan-200/10 bg-cyan-300/8 p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="sm:max-w-xl">
+              <div className="mt-5 rounded-[1.5rem] border border-cyan-200/10 bg-cyan-300/8 px-4 py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/75">
                       Best Clues
                     </p>
-                    <h3 className="mt-2 text-lg font-semibold text-white">Give the model something distinctive to read</h3>
-                  </div>
-                  <div className="rounded-full border border-cyan-200/15 bg-white/5 px-3 py-1 text-xs text-cyan-100">
-                    Text + landmarks win
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-100">Readable text</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-300">
-                      Street signs, storefront names, road numbers, transit signs, and license plates help the AI narrow location quickly.
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Prioritize readable text, recognizable landmarks, and one wider context shot.
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-100">Landmarks</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-300">
-                      Statues, towers, mountain silhouettes, bridges, plazas, monuments, and unique buildings are strong anchors.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-100">Context shots</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-300">
-                      Mix one wide scene with one close crop so the model sees both the environment and the details inside it.
-                    </p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full border border-white/10 bg-slate-950/45 px-3 py-1.5 text-slate-200">
+                      Street signs
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-slate-950/45 px-3 py-1.5 text-slate-200">
+                      Place names
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-slate-950/45 px-3 py-1.5 text-slate-200">
+                      Landmarks
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-slate-950/45 px-3 py-1.5 text-slate-200">
+                      Road numbers
+                    </span>
                   </div>
                 </div>
               </div>
@@ -388,20 +393,8 @@ export default function ImageUpload({ onAnalyze, loading }: ImageUploadProps) {
                 </div>
               )}
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={files.length === 0 || loading || preparing}
-                  className={`inline-flex min-h-14 flex-1 items-center justify-center rounded-2xl px-5 py-4 text-base font-semibold transition ${
-                    files.length === 0 || loading || preparing
-                      ? 'cursor-not-allowed bg-slate-800 text-slate-500'
-                      : 'bg-white text-slate-950 hover:bg-cyan-100'
-                  }`}
-                >
-                  {preparing ? 'Optimizing Screenshots...' : 'Analyze Location'}
-                </button>
-                <p className="text-sm leading-6 text-slate-400 sm:max-w-xs">
+              <div className="mt-6">
+                <p className="text-sm leading-6 text-slate-400 sm:max-w-xl">
                   Prioritize screenshots with visible text, a recognizable landmark, or road signage whenever possible.
                 </p>
               </div>
